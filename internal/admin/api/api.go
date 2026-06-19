@@ -21,6 +21,9 @@ func InitAdminRouter() *gin.Engine {
 				"status": "healthy",
 			})
 		})
+
+		// register admin routers
+		registerAdminRouter(api)
 	}
 
 	return engine
