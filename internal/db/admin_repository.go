@@ -10,6 +10,7 @@ import (
 type AdminRepository interface {
 	Create(ctx context.Context, admin *models.Admin) error
 	FindOne(ctx context.Context, admin *models.Admin) (models.Admin, error)
+	First(ctx context.Context) (models.Admin, error)
 }
 
 type adminRepo struct {
@@ -26,4 +27,8 @@ func (r *adminRepo) Create(ctx context.Context, admin *models.Admin) error {
 
 func (r *adminRepo) FindOne(ctx context.Context, admin *models.Admin) (models.Admin, error) {
 	return gorm.G[models.Admin](r.db).Where(&admin).First(ctx)
+}
+
+func (r *adminRepo) First(ctx context.Context) (models.Admin, error) {
+	return gorm.G[models.Admin](r.db).First(ctx)
 }

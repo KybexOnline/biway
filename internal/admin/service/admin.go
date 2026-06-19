@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"github.com/KybexOnline/biway/internal/db"
 	"github.com/KybexOnline/biway/internal/models"
+	"gorm.io/gorm"
 )
 
 type AdminService struct {
@@ -28,4 +30,16 @@ func (s *AdminService) Create(ctx context.Context, username, password string) er
 		Username:     username,
 		PasswordHash: password,
 	})
+}
+
+func (s *AdminService) HasAdmin(ctx context.Context) (bool, error) {
+	_, err := s.repo.First(ctx)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
 }

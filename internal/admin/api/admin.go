@@ -91,59 +91,71 @@ func status(c *gin.Context) {
 	})
 }
 
+// InitialRequest represents the payload required to set up the initial admin user.
+// Added minimum length validation to ensure secure credentials.
 type initialRequest struct {
-	Username string `form:"username" json:"username" binding:"required"`
-	Password string `form:"password" json:"password" binding:"required"`
+	Username string `form:"username" json:"username" binding:"required,min=4,max=32"`
+	Password string `form:"password" json:"password" binding:"required,min=8"`
 }
 
+// Initial handles the system initialization endpoint.
+// It checks if the system already has an admin user. If not, it provisions
+// the first administrative account using the provided credentials.
 func initial(c *gin.Context) {
 	var req initialRequest
 
+	// 1. Validate Input Payload
 	if err := c.ShouldBind(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"status": "error",
-			"error":  err.Error(),
+			"error":   "invalid request payload",
+			"details": err.Error(),
 		})
 		return
 	}
 
-	_, err := adminService.FindByUsername(c.Request.Context(), "")
+	ctx := c.Request.Context()
+
+	// 2. Check Initialization Status
+	hasAdmin, err := adminService.HasAdmin(ctx)
 	if err != nil {
-		// Case: No admin user exists, trigger setup flow
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-
-			passwordHash, err := utils.HashPassword(req.Password)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"error": "internal system error while creating hash password",
-				})
-				return
-			}
-
-			err = adminService.Create(c.Request.Context(), req.Username, passwordHash)
-
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"error": "internal system error while creating admin",
-				})
-				return
-			}
-
-			c.JSON(http.StatusOK, gin.H{
-				"message": "system successfully initialized!",
-			})
-
-			return
-		}
-
 		// Case: Actual infrastructure/DB error. Do not falsely report initialized.
+		// In a real app, you should log 'err' here internally.
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "internal system error while checking initialization status",
 		})
 		return
 	}
 
-	c.JSON(http.StatusBadRequest, gin.H{
-		"message": "Your service is already initialized",
+	if hasAdmin {
+		// StatusConflict (409) is more semantic here than StatusBadRequest (400).
+		c.JSON(http.StatusConflict, gin.H{
+			"error": "system is already initialized",
+		})
+		return
+	}
+
+	// 3. Setup Flow (no admin exists)
+	passwordHash, err := utils.HashPassword(req.Password)
+	if err != nil {
+		// Log internal err here
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "failed to process secure password",
+		})
+		return
+	}
+
+	// 5. Create the Admin User
+	if err := adminService.Create(ctx, req.Username, passwordHash); err != nil {
+		// Log internal err here
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "failed to provision initial admin user",
+		})
+		return
+	}
+
+	// 6. Success Response
+	// StatusCreated (201) indicates a resource was successfully created.
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "system successfully initialized",
 	})
 }
