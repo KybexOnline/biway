@@ -1,14 +1,12 @@
 package api
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/KybexOnline/biway/internal/admin/service"
 	"github.com/KybexOnline/biway/internal/db"
 	"github.com/KybexOnline/biway/pkg/utils"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 var adminService *service.AdminService
@@ -63,22 +61,22 @@ func adminLogin(c *gin.Context) {
 //   - 200 OK (needs_setup: false) : System is configured and ready.
 //   - 500 Internal Server Error   : Database connection or query failure.
 func status(c *gin.Context) {
-	_, err := adminService.FindByUsername(c.Request.Context(), "")
-
+	hasAdmin, err := adminService.HasAdmin(c.Request.Context())
 	if err != nil {
-		// Case: No admin user exists, trigger setup flow
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusOK, gin.H{
-				"initialized": false,
-				"needs_setup": true,
-				"version":     "1.0.0",
-			})
-			return
-		}
-
 		// Case: Actual infrastructure/DB error. Do not falsely report initialized.
+		// In a real app, you should log 'err' here internally.
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "internal system error while checking initialization status",
+		})
+		return
+	}
+
+	if !hasAdmin {
+		// Case: No admin user exists, trigger setup flow
+		c.JSON(http.StatusOK, gin.H{
+			"initialized": false,
+			"needs_setup": true,
+			"version":     "1.0.0",
 		})
 		return
 	}
