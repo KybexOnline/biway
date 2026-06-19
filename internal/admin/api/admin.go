@@ -6,6 +6,7 @@ import (
 
 	"github.com/KybexOnline/biway/internal/admin/service"
 	"github.com/KybexOnline/biway/internal/db"
+	"github.com/KybexOnline/biway/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -29,6 +30,7 @@ func registerAdminRouter(group *gin.RouterGroup) {
 	api := group.Group("/admin")
 	{
 		api.POST("/login", adminLogin)
+		api.POST("/initial", initial)
 	}
 }
 
@@ -86,5 +88,62 @@ func status(c *gin.Context) {
 		"initialized": true,
 		"needs_setup": false,
 		"version":     "1.0.0",
+	})
+}
+
+type initialRequest struct {
+	Username string `form:"username" json:"username" binding:"required"`
+	Password string `form:"password" json:"password" binding:"required"`
+}
+
+func initial(c *gin.Context) {
+	var req initialRequest
+
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status": "error",
+			"error":  err.Error(),
+		})
+		return
+	}
+
+	_, err := adminService.FindByUsername(c.Request.Context(), "")
+	if err != nil {
+		// Case: No admin user exists, trigger setup flow
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+
+			passwordHash, err := utils.HashPassword(req.Password)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error": "internal system error while creating hash password",
+				})
+				return
+			}
+
+			err = adminService.Create(c.Request.Context(), req.Username, passwordHash)
+
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error": "internal system error while creating admin",
+				})
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"message": "system successfully initialized!",
+			})
+
+			return
+		}
+
+		// Case: Actual infrastructure/DB error. Do not falsely report initialized.
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal system error while checking initialization status",
+		})
+		return
+	}
+
+	c.JSON(http.StatusBadRequest, gin.H{
+		"message": "Your service is already initialized",
 	})
 }

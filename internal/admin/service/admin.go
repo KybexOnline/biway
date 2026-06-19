@@ -22,3 +22,10 @@ func (s *AdminService) FindByUsername(ctx context.Context, username string) (mod
 		Username: username,
 	})
 }
+
+func (s *AdminService) Create(ctx context.Context, username, password string) error {
+	return s.repo.Create(ctx, &models.Admin{
+		Username:     username,
+		PasswordHash: password,
+	})
+}
