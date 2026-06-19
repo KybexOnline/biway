@@ -4,18 +4,23 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/KybexOnline/biway/internal/admin/api"
 	"github.com/spf13/cobra"
 )
 
-var listen net.IP
-var port int
-
 func serverCommand() *cobra.Command {
-	var cmd = &cobra.Command{
+	var listen net.IP
+	var port int
+
+	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "serve the admin panel and api",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("%s:%d", listen.String(), port)
+			listenAddr := fmt.Sprintf("%s:%d", listen.String(), port)
+
+			engine := api.InitAdminRouter()
+
+			engine.Run(listenAddr)
 		},
 	}
 
