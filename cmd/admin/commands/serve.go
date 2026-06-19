@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/KybexOnline/biway/internal/admin/api"
+	"github.com/KybexOnline/biway/internal/db"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -18,11 +19,17 @@ import (
 func serverCommand() *cobra.Command {
 	var listen net.IP
 	var port int
+	var dbPath string
 
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "serve the admin panel and api",
 		Run: func(cmd *cobra.Command, args []string) {
+			_, err := db.GetDatabaseConnection(dbPath)
+			if err != nil {
+				panic(err)
+			}
+
 			listenAddr := fmt.Sprintf("%s:%d", listen.String(), port)
 
 			engine := api.InitAdminRouter()
@@ -58,6 +65,7 @@ func serverCommand() *cobra.Command {
 
 	cmd.Flags().IPVarP(&listen, "listen", "l", net.IPv4(0, 0, 0, 0), "Listen IP!")
 	cmd.Flags().IntVarP(&port, "port", "p", 8500, "port of web service!")
+	cmd.Flags().StringVarP(&dbPath, "database", "d", "biway.sqlite", "database path")
 
 	return cmd
 }
