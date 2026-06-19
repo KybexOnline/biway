@@ -15,5 +15,8 @@ Create, manage, modify, and monitor your mesh infrastructure with simplicity and
 }
 
 func init() {
-	RootCommand.AddCommand(serverCommand())
+	RootCommand.AddCommand(
+		serverCommand(),
+		migrationCommand(),
+	)
 }
