@@ -1,10 +1,17 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/KybexOnline/biway/internal/admin/api"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +27,32 @@ func serverCommand() *cobra.Command {
 
 			engine := api.InitAdminRouter()
 
-			engine.Run(listenAddr)
+			srv := &http.Server{
+				Addr:    listenAddr,
+				Handler: engine.Handler(),
+			}
+
+			go func() {
+				// service connections
+				if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+					log.Info().Msgf("listen: %s\n", err)
+				}
+			}()
+
+			quit := make(chan os.Signal, 1)
+			// kill (no params) by default sends syscall.SIGTERM
+			// kill -2 is syscall.SIGINT
+			// kill -9 is syscall.SIGKILL but can't be caught, so don't need add it
+			signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+			<-quit
+			log.Info().Msg("Shutdown Server ...")
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := srv.Shutdown(ctx); err != nil {
+				log.Info().Msgf("Server Shutdown: %s", err)
+			}
+
 		},
 	}
 
