@@ -47,8 +47,36 @@ func adminLogin(c *gin.Context) {
 		})
 		return
 	}
+	ctx := c.Request.Context()
+	admin, err := adminService.FindByUsername(ctx, login.User)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "User or password is incorrect",
+		})
+		return
+	}
 
-	c.JSON(http.StatusOK, login)
+	passwordCheck, err := utils.VerifyPassword(login.Password, admin.PasswordHash)
+
+	if err != nil || !passwordCheck {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "User or password is incorrect",
+		})
+		return
+	}
+
+	token, err := utils.JWT.GenerateTokenById(admin.ID)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal system error",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token": token,
+	})
 }
 
 // status handles the API endpoint for checking Biway's initialization state.
