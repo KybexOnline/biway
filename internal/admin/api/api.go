@@ -29,6 +29,9 @@ func InitAdminRouter() *gin.Engine {
 
 		// register admin routers
 		registerAdminRouter(api)
+
+		// register server routers
+		registerServerRouter(api)
 	}
 
 	return engine

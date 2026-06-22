@@ -17,7 +17,7 @@ func migrationCommand() *cobra.Command {
 			if err != nil {
 				panic(err)
 			}
-			err = db.AutoMigrate(&models.Admin{})
+			err = db.AutoMigrate(&models.Admin{}, &models.Servers{})
 			if err != nil {
 				panic(err)
 			}
