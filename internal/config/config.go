@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -13,7 +14,9 @@ import (
 var AppConfig Config
 
 type Config struct {
-	JWTSecret string `mapstructure:"jwt_secret"`
+	Environment  string   `mapstructure:"env"`
+	JWTSecret    string   `mapstructure:"jwt_secret"`
+	AllowOrigins []string `mapstructure:"allow_origins"`
 }
 
 func generateRandomSecret(length int) (string, error) {
@@ -24,37 +27,60 @@ func generateRandomSecret(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
+func bindEnvWithSlice(key string) {
+	envKey := strings.ToUpper(viper.GetEnvPrefix() + "_" + key)
+	if value := os.Getenv(envKey); value != "" {
+		// Split by comma and trim spaces
+		items := strings.Split(value, ",")
+		var trimmed []string
+		for _, item := range items {
+			if trimmedItem := strings.TrimSpace(item); trimmedItem != "" {
+				trimmed = append(trimmed, trimmedItem)
+			}
+		}
+		viper.Set(key, trimmed)
+	}
+}
+
 func LoadConfig(configPath string) {
 	viper.SetConfigFile(configPath)
+	viper.SetEnvPrefix("biway")
+	viper.AutomaticEnv()
+
+	// Set defaults
+	viper.SetDefault("allow_origins", []string{"*"})
+	viper.SetDefault("env", "production")
+
+	// Special handling for allow_origins from environment variable
+	bindEnvWithSlice("allow_origins")
 
 	if err := viper.ReadInConfig(); err != nil {
-		// Use errors.Is with os.ErrNotExist to check if the explicit file is missing
 		if errors.Is(err, os.ErrNotExist) {
 			log.Printf("Config file %s not found. Bootstrapping a new one...", configPath)
 
-			// Generate the secret
-			secret, err := generateRandomSecret(32)
-			if err != nil {
-				log.Fatalf("Failed to generate secure JWT secret: %v", err)
+			if viper.GetString("jwt_secret") == "" {
+				log.Println("JWT secret not found. Generating a secure random secret...")
+				secret, err := generateRandomSecret(32)
+				if err != nil {
+					log.Fatalf("Failed to generate secure JWT secret: %v", err)
+				}
+				viper.Set("jwt_secret", secret)
+			} else {
+				viper.SetDefault("jwt_secret", viper.GetString("jwt_secret"))
 			}
 
-			viper.Set("jwt_secret", secret)
-
-			// Create and write to the new file
 			if err := viper.WriteConfigAs(configPath); err != nil {
 				log.Fatalf("Failed to create new config file: %v", err)
 			}
 
 			log.Printf("Successfully created new config file at: %s", configPath)
-
 		} else {
-			// Catch other errors (e.g., malformed YAML, permission denied)
 			log.Fatalf("Error reading config: %v", err)
 		}
 	}
 
-	// Unmarshal the config into our struct
+	// Unmarshal into struct
 	if err := viper.Unmarshal(&AppConfig); err != nil {
-		log.Fatalf("Unable to decode into struct: %v", err)
+		log.Fatalf("Unable to decode config into struct: %v", err)
 	}
 }
