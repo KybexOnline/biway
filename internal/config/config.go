@@ -17,6 +17,7 @@ type Config struct {
 	Environment  string   `mapstructure:"env"`
 	JWTSecret    string   `mapstructure:"jwt_secret"`
 	AllowOrigins []string `mapstructure:"allow_origins"`
+	PrivateCIDR  string   `mapstructure:"private_cidr"`
 }
 
 func generateRandomSecret(length int) (string, error) {
@@ -50,6 +51,7 @@ func LoadConfig(configPath string) {
 	// Set defaults
 	viper.SetDefault("allow_origins", []string{"*"})
 	viper.SetDefault("env", "production")
+	viper.SetDefault("private_cidr", "10.35.0.0/24")
 
 	// Special handling for allow_origins from environment variable
 	bindEnvWithSlice("allow_origins")
