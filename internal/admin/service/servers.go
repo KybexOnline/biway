@@ -2,9 +2,14 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"slices"
 
+	"github.com/KybexOnline/biway/internal/config"
 	"github.com/KybexOnline/biway/internal/db"
 	"github.com/KybexOnline/biway/internal/models"
+	"github.com/KybexOnline/biway/pkg/utils"
 	"gorm.io/datatypes"
 )
 
@@ -26,6 +31,33 @@ func (s *ServerService) Create(
 	ctx context.Context, name string, tags []string,
 	provider, public_ip, private_ip string,
 ) (models.Servers, error) {
+
+	usedIPs, err := s.GetUsedPrivateIPs(ctx)
+	if err != nil {
+		return models.Servers{}, err
+	}
+
+	if private_ip != "" {
+		check, err := utils.IPContains(private_ip, config.AppConfig.PrivateCIDR)
+		fmt.Printf("check the %s on %s => %v and error: %s", private_ip, config.AppConfig.PrivateCIDR, check, err)
+		if err != nil {
+			return models.Servers{}, err
+		} else if !check {
+			return models.Servers{}, errors.New("private ip is invalid")
+		}
+
+		check = slices.Contains(usedIPs, private_ip)
+		if check {
+			return models.Servers{}, errors.New("private ip is taken.")
+		}
+
+	} else {
+		private_ip, err = utils.GetNextAvailableIP(config.AppConfig.PrivateCIDR, usedIPs, false)
+		if err != nil {
+			return models.Servers{}, err
+		}
+	}
+
 	server := models.Servers{
 		Name:      name,
 		Tags:      datatypes.JSON("[]"),
@@ -33,6 +65,23 @@ func (s *ServerService) Create(
 		PublicIP:  public_ip,
 		PrivateIP: private_ip,
 	}
-	err := s.repo.Create(ctx, &server)
+	err = s.repo.Create(ctx, &server)
 	return server, err
+}
+
+func (s *ServerService) GetUsedPrivateIPs(ctx context.Context) ([]string, error) {
+	servers, err := s.repo.FindSelected(ctx, &models.Servers{}, []string{"private_ip"})
+	if err != nil {
+		return nil, err
+	}
+
+	usedIps := []string{}
+
+	for _, server := range servers {
+		if server.PrivateIP != "" {
+			usedIps = append(usedIps, server.PrivateIP)
+		}
+	}
+
+	return usedIps, nil
 }

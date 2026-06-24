@@ -14,6 +14,9 @@ type ServerRepository interface {
 	// FindPaginated returns a list of servers, the total count, and an error.
 	// page starts at 1.
 	FindPaginated(ctx context.Context, filter *models.Servers, page int, pageSize int) ([]models.Servers, int64, error)
+
+	// FindSelected allows you to find by a filter but only query specific columns/fields.
+	FindSelected(ctx context.Context, filter *models.Servers, fields []string) ([]models.Servers, error)
 }
 
 type serverRepo struct {
@@ -63,4 +66,21 @@ func (s *serverRepo) FindPaginated(ctx context.Context, filter *models.Servers, 
 	}
 
 	return servers, totalRows, nil
+}
+
+// FindSelected retrieves records matching the filter, but only populates the struct with the columns provided in 'fields'.
+func (s *serverRepo) FindSelected(ctx context.Context, filter *models.Servers, fields []string) ([]models.Servers, error) {
+	var servers []models.Servers
+
+	query := s.db.WithContext(ctx).Model(&models.Servers{}).Where(filter)
+
+	if len(fields) > 0 {
+		query = query.Select(fields)
+	}
+
+	if err := query.Find(&servers).Error; err != nil {
+		return nil, err
+	}
+
+	return servers, nil
 }

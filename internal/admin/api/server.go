@@ -29,15 +29,39 @@ func registerServerRouter(group *gin.RouterGroup) {
 	}
 }
 
+type serverListReq struct {
+	Start int `form:"_start" binding:"omitempty,min=0"` // offset
+	End   int `form:"_end" binding:"omitempty,min=0"`   // limit = end - start
+}
+
 func serverList(c *gin.Context) {
+	var req serverListReq
+
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Default values if not provided
+	if req.End == 0 {
+		req.End = 10 // default page size
+	}
+	if req.Start < 0 {
+		req.Start = 0
+	}
+
+	limit := req.End - req.Start
+	if limit <= 0 {
+		limit = 10
+	}
 
 	ctx := c.Request.Context()
 
 	servers, total, err := serverService.List(
 		ctx,
 		&models.Servers{},
-		1,
-		10,
+		req.Start, // offset
+		limit,     // limit
 	)
 
 	if err != nil {
@@ -48,14 +72,12 @@ func serverList(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"servers": servers,
-		"meta": gin.H{
-			"total": total,
-			"page":  1,
-			"count": len(servers),
-		},
+		"items": servers,
+		"total": total,
+		"page":  (req.Start / limit) + 1,
+		"limit": limit,
+		"count": len(servers),
 	})
-
 }
 
 type serverCreateReq struct {
