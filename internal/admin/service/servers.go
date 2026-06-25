@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -67,12 +68,22 @@ func (s *ServerService) Create(
 		}
 	}
 
+	if tags == nil {
+		tags = []string{}
+	}
+
+	tagsBytes, err := json.Marshal(tags)
+	if err != nil {
+		return models.Servers{}, fmt.Errorf("failed to marshal tags: %w", err)
+	}
+
 	server := models.Servers{
 		Name:      name,
-		Tags:      datatypes.JSON("[]"),
+		Tags:      datatypes.JSON(tagsBytes),
 		Provider:  provider,
 		PublicIP:  public_ip,
 		PrivateIP: private_ip,
+		Status:    models.NotInitialized,
 	}
 	err = s.repo.Create(ctx, &server)
 	return server, err
