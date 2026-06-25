@@ -10,6 +10,7 @@ import (
 	"github.com/KybexOnline/biway/internal/db"
 	"github.com/KybexOnline/biway/internal/models"
 	"github.com/KybexOnline/biway/pkg/utils"
+	"github.com/google/uuid"
 	"gorm.io/datatypes"
 )
 
@@ -21,6 +22,14 @@ func NewServerService(repo db.ServerRepository) *ServerService {
 	return &ServerService{
 		repo: repo,
 	}
+}
+
+func (s *ServerService) GetById(ctx context.Context, id string) (models.Servers, error) {
+	uuids, err := uuid.Parse(id)
+	if err != nil {
+		return models.Servers{}, err
+	}
+	return s.repo.FindOne(ctx, &models.Servers{ID: uuids})
 }
 
 func (s *ServerService) List(ctx context.Context, filter *models.Servers, page int, pageSize int) ([]models.Servers, int64, error) {

@@ -26,7 +26,27 @@ func registerServerRouter(group *gin.RouterGroup) {
 	{
 		api.GET("", serverList)
 		api.POST("", serverCreate)
+		api.GET("/:id", serverDetails)
 	}
+}
+
+func serverDetails(c *gin.Context) {
+	server_id := c.Param("id")
+	if server_id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "id is required",
+		})
+	}
+	ctx := c.Request.Context()
+	server, err := serverService.GetById(ctx, server_id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal system error",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, server)
 }
 
 type serverListReq struct {
