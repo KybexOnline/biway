@@ -68,6 +68,13 @@ func (s *ServerService) Create(
 		}
 	}
 
+	// TODO: need to make sure the api token store encrypted
+	apiToken, err := utils.GenerateAgentToken()
+
+	if err != nil {
+		return models.Servers{}, err
+	}
+
 	if tags == nil {
 		tags = []string{}
 	}
@@ -80,6 +87,7 @@ func (s *ServerService) Create(
 	server := models.Servers{
 		Name:      name,
 		Tags:      datatypes.JSON(tagsBytes),
+		APIKey:    apiToken,
 		Provider:  provider,
 		PublicIP:  public_ip,
 		PrivateIP: private_ip,

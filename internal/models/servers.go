@@ -27,6 +27,8 @@ type Servers struct {
 	PrivateIP string         `json:"private_ip"`
 	PublicKey string         `json:"public_key"`
 
+	APIKey string `json:"api_key"`
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
