@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -26,8 +27,44 @@ func registerServerRouter(group *gin.RouterGroup) {
 	{
 		api.GET("", serverList)
 		api.POST("", serverCreate)
+		api.GET("/me", serverAuthenticate(), agentInfo)
+		api.POST("/set_pubkey", serverAuthenticate(), setPublicKey)
 		api.GET("/:id", serverDetails)
 	}
+}
+
+// TODO: need to change
+func agentInfo(c *gin.Context) {
+	s, _ := c.Get(AGENT_KEY)
+	server := s.(models.AgentInfo)
+	c.JSON(http.StatusOK, server)
+}
+
+func setPublicKey(c *gin.Context) {
+	type Req struct {
+		PublicKey string `json:"public_key"`
+	}
+
+	var req Req
+
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	s, _ := c.Get(AGENT_KEY)
+	server := s.(models.AgentInfo)
+
+	agent, err := serverService.SetPublicKey(c.Request.Context(), server.ID, req.PublicKey)
+	if err != nil {
+		fmt.Println(err)
+		c.Set("x-error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal system error",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, agent)
 }
 
 func serverDetails(c *gin.Context) {

@@ -113,3 +113,40 @@ func (s *ServerService) GetUsedPrivateIPs(ctx context.Context) ([]string, error)
 
 	return usedIps, nil
 }
+
+func (s *ServerService) convertServerToAgent(server models.Servers) models.AgentInfo {
+	return models.AgentInfo{
+		ID:        server.ID,
+		Name:      server.Name,
+		PublicIP:  server.PublicIP,
+		PrivateIP: server.PrivateIP,
+		Status:    server.Status,
+		PublicKey: server.PublicKey,
+	}
+}
+
+func (s *ServerService) GetAgentByToken(ctx context.Context, token string) (models.AgentInfo, error) {
+	server, err := s.repo.FindOne(ctx, &models.Servers{
+		APIKey: token,
+	})
+	if err != nil {
+		return models.AgentInfo{}, err
+	}
+	return s.convertServerToAgent(server), nil
+}
+
+func (s *ServerService) SetPublicKey(ctx context.Context, id uuid.UUID, publicKey string) (models.AgentInfo, error) {
+	err := s.repo.Update(ctx, &models.Servers{ID: id}, map[string]any{
+		"public_key": publicKey,
+		"status":     models.Installed,
+	})
+	fmt.Println(err)
+	if err != nil {
+		return models.AgentInfo{}, err
+	}
+	server, err := s.repo.FindOne(ctx, &models.Servers{ID: id})
+	if err != nil {
+		return models.AgentInfo{}, err
+	}
+	return s.convertServerToAgent(server), nil
+}

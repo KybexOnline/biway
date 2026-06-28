@@ -17,6 +17,10 @@ type ServerRepository interface {
 
 	// FindSelected allows you to find by a filter but only query specific columns/fields.
 	FindSelected(ctx context.Context, filter *models.Servers, fields []string) ([]models.Servers, error)
+
+	// Update updates all server records that match the filter.
+	// updateData can be a *models.Servers struct or a map[string]interface{}.
+	Update(ctx context.Context, filter *models.Servers, updateData interface{}) error
 }
 
 type serverRepo struct {
@@ -83,4 +87,14 @@ func (s *serverRepo) FindSelected(ctx context.Context, filter *models.Servers, f
 	}
 
 	return servers, nil
+}
+
+// Update updates all records matching the filter with the provided data.
+func (s *serverRepo) Update(ctx context.Context, filter *models.Servers, updateData interface{}) error {
+	// GORM requires a global update prevention unless a Where clause is present.
+	// Since we pass the filter, it safely updates only matching records.
+	return s.db.WithContext(ctx).
+		Model(&models.Servers{}).
+		Where(filter).
+		Updates(updateData).Error
 }

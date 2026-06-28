@@ -45,7 +45,7 @@ func bindEnvWithSlice(key string) {
 
 func LoadConfig(configPath string) {
 	viper.SetConfigFile(configPath)
-	viper.SetEnvPrefix("biway")
+	viper.SetEnvPrefix("BIWAY")
 	viper.AutomaticEnv()
 
 	// Set defaults
