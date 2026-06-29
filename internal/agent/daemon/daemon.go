@@ -82,13 +82,13 @@ func (d *Daemon) Run(ctx context.Context) error {
 	log.Info().Msg("Shutdown signal received. Waiting for workers to finish...")
 
 	// Wait for all workers to cleanly exit
-	// d.wGroup.Wait()
+	d.wGroup.Wait()
 
 	log.Info().Msg("All workers finished. Exiting...")
 	return nil
 }
 
-// pollPeersWorker periodically fetches peers from the API
+// pollPeersWorker periodically fetches peers from the API and syncs them
 func (d *Daemon) pollPeersWorker(ctx context.Context) {
 	defer d.wGroup.Done()
 
@@ -101,17 +101,58 @@ func (d *Daemon) pollPeersWorker(ctx context.Context) {
 			log.Info().Msg("Stopping peer polling worker...")
 			return
 		case <-ticker.C:
-			peers := d.getWireguardPeers(ctx)
-			d.wgctrl.ConfigureDevice(d.ifaceName, wgtypes.Config{
-				Peers:        peers,
-				ReplacePeers: true,
-			})
-			log.Info().Msg("Sync peers")
-
+			// Using the newly implemented syncPeers function
+			if err := d.syncPeers(ctx); err != nil {
+				log.Error().Err(err).Msg("Failed to sync peers")
+			} else {
+				log.Info().Msg("Successfully synced peers")
+			}
 		}
 	}
 }
 
+func (d *Daemon) syncPeers(ctx context.Context) error {
+	device, err := d.wgctrl.Device(d.ifaceName)
+	if err != nil {
+		return err
+	}
+
+	existPeers := device.Peers
+	apiPeers := d.getWireguardPeers(ctx)
+
+	// Map to keep track of valid API peers by their PublicKey
+	apiPeerMap := make(map[wgtypes.Key]wgtypes.PeerConfig)
+	for _, p := range apiPeers {
+		apiPeerMap[p.PublicKey] = p
+	}
+
+	var peersToConfigure []wgtypes.PeerConfig
+
+	// Find existing peers that are NO LONGER in the API and remove them
+	for _, ep := range existPeers {
+		if _, found := apiPeerMap[ep.PublicKey]; !found {
+			// Mark peer for removal
+			peersToConfigure = append(peersToConfigure, wgtypes.PeerConfig{
+				PublicKey: ep.PublicKey,
+				Remove:    true,
+			})
+			log.Debug().Msgf("Marking peer for removal: %s", ep.PublicKey.String())
+		}
+	}
+
+	// Add all API peers. Wireguard will automatically add new ones
+	// and update existing ones (e.g., if endpoint or allowed IPs changed)
+	peersToConfigure = append(peersToConfigure, apiPeers...)
+
+	// Apply the changes. ReplacePeers MUST be false to do a granular update
+	// without resetting the whole interface and dropping traffic.
+	err = d.wgctrl.ConfigureDevice(d.ifaceName, wgtypes.Config{
+		Peers:        peersToConfigure,
+		ReplacePeers: false,
+	})
+
+	return err
+}
 
 func (d *Daemon) GetPrivateKey() wgtypes.Key {
 	private := config.AgentConfig.PrivateKey
@@ -165,7 +206,6 @@ func (d *Daemon) SetupAgent(ctx context.Context) error {
 	// must create a private key for agent and then send the public key to api
 	privateKey := d.GetPrivateKey()
 	if agentInfo.Status == models.NotInitialized && agentInfo.PublicKey == "" {
-		privateKey := d.GetPrivateKey()
 		_, err := d.agentClient.SetPublicKey(ctx, privateKey.PublicKey().String())
 		if err != nil {
 			log.Error().Err(err).Msg("failed to set public key")
@@ -221,7 +261,8 @@ func (d *Daemon) getWireguardPeers(ctx context.Context) []wgtypes.PeerConfig {
 		log.Error().Err(err).Msg("can not get wireguard peers")
 	}
 
-	peers := make([]wgtypes.PeerConfig, len(availablePeers))
+	// FIX: Use 0 for initial length, otherwise the append starts after empty entries
+	peers := make([]wgtypes.PeerConfig, 0, len(availablePeers))
 
 	for _, peer := range availablePeers {
 		pubkey, _ := wgtypes.ParseKey(peer.PublicKey)
