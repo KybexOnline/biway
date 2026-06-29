@@ -2,12 +2,16 @@ package daemon
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
+	"github.com/vishvananda/netlink"
+	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 	"github.com/KybexOnline/biway/internal/agent/client"
@@ -21,8 +25,13 @@ type Daemon struct {
 	pollingInterval    time.Duration
 	monitoringInterval time.Duration
 
+	listenPort int
+
 	// waiting group
 	wGroup *sync.WaitGroup
+
+	// wireguard controller
+	wgctrl *wgctrl.Client
 }
 
 type DaemonConfig struct {
@@ -39,15 +48,31 @@ func NewDaemon(cfg DaemonConfig) *Daemon {
 		pollingInterval:    1 * time.Minute,
 		monitoringInterval: 20 * time.Second,
 
+		listenPort: 25259,
+
 		wGroup: &sync.WaitGroup{},
 	}
 }
 
 func (d *Daemon) Run(ctx context.Context) error {
 
-	d.SetupAgent(ctx)
+	err := d.SetupAgent(ctx)
+	if err != nil {
+		return err
+	}
 
-	// d.wGroup.Add(2)
+	// stop wireguard
+	defer func() {
+		log.Info().Msg("Tearing down Wireguard interface...")
+		if err := d.teardownWireguard(); err != nil {
+			log.Error().Err(err).Msg("Error tearing down wireguard")
+		}
+	}()
+
+	d.wGroup.Add(1)
+
+	// setup worker
+	go d.pollPeersWorker(ctx)
 
 	log.Info().Msg("Daemon is running. Press Ctrl+C to stop.")
 
@@ -62,6 +87,31 @@ func (d *Daemon) Run(ctx context.Context) error {
 	log.Info().Msg("All workers finished. Exiting...")
 	return nil
 }
+
+// pollPeersWorker periodically fetches peers from the API
+func (d *Daemon) pollPeersWorker(ctx context.Context) {
+	defer d.wGroup.Done()
+
+	ticker := time.NewTicker(d.pollingInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info().Msg("Stopping peer polling worker...")
+			return
+		case <-ticker.C:
+			peers := d.getWireguardPeers(ctx)
+			d.wgctrl.ConfigureDevice(d.ifaceName, wgtypes.Config{
+				Peers:        peers,
+				ReplacePeers: true,
+			})
+			log.Info().Msg("Sync peers")
+
+		}
+	}
+}
+
 
 func (d *Daemon) GetPrivateKey() wgtypes.Key {
 	private := config.AgentConfig.PrivateKey
@@ -93,6 +143,16 @@ func (d *Daemon) GetPrivateKey() wgtypes.Key {
 	return privatekey
 }
 
+func (d *Daemon) teardownWireguard() error {
+	_ = d.agentClient.ChangeStatus(context.Background(), models.Offline)
+	defer d.wgctrl.Close()
+	err := d.wgctrl.ConfigureDevice(d.ifaceName, wgtypes.Config{PrivateKey: nil}) // clear
+	if err != nil {
+		return err
+	}
+	return netlink.LinkDel(&netlink.GenericLink{LinkAttrs: netlink.LinkAttrs{Name: d.ifaceName}})
+}
+
 func (d *Daemon) SetupAgent(ctx context.Context) error {
 	// step 1: get agent info from server
 	agentInfo, err := d.agentClient.GetAgentInfo()
@@ -103,6 +163,7 @@ func (d *Daemon) SetupAgent(ctx context.Context) error {
 	// step 2: check status and public key
 	// if agent has a not initilized status and has not public key
 	// must create a private key for agent and then send the public key to api
+	privateKey := d.GetPrivateKey()
 	if agentInfo.Status == models.NotInitialized && agentInfo.PublicKey == "" {
 		privateKey := d.GetPrivateKey()
 		_, err := d.agentClient.SetPublicKey(ctx, privateKey.PublicKey().String())
@@ -111,6 +172,118 @@ func (d *Daemon) SetupAgent(ctx context.Context) error {
 			os.Exit(1)
 		}
 	}
+
+	err = d.startWireguardInstance(ctx, privateKey, agentInfo)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to start wiregaurd instance")
+		os.Exit(1)
+	}
+
+	return nil
+}
+
+func createPrivateIPWithSubnet(privateIP, cidr string) (*netlink.Addr, error) {
+	// Parse the CIDR to get the subnet mask
+	_, subnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid CIDR %s: %w", cidr, err)
+	}
+
+	// Parse the IP
+	ip := net.ParseIP(privateIP)
+	if ip == nil {
+		return nil, fmt.Errorf("invalid IP address: %s", privateIP)
+	}
+
+	// Check if the IP belongs to the subnet
+	if !subnet.Contains(ip) {
+		return nil, fmt.Errorf("IP %s is not in subnet %s", privateIP, cidr)
+	}
+
+	// Get the mask size (e.g. /20)
+	ones, _ := subnet.Mask.Size()
+
+	// Return IP with subnet mask
+	result := fmt.Sprintf("%s/%d", ip.String(), ones)
+
+	addr, err := netlink.ParseAddr(result)
+	if err != nil {
+		return nil, err
+	}
+
+	return addr, nil
+}
+
+func (d *Daemon) getWireguardPeers(ctx context.Context) []wgtypes.PeerConfig {
+	// fetch peers for agent
+	availablePeers, err := d.agentClient.GetPeers(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("can not get wireguard peers")
+	}
+
+	peers := make([]wgtypes.PeerConfig, len(availablePeers))
+
+	for _, peer := range availablePeers {
+		pubkey, _ := wgtypes.ParseKey(peer.PublicKey)
+		endpint, _ := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", peer.PublicIP, d.listenPort))
+		_, allowedrange, _ := net.ParseCIDR(fmt.Sprintf("%s/32", peer.PrivateIP))
+		peers = append(peers, wgtypes.PeerConfig{
+			PublicKey:  pubkey,
+			Endpoint:   endpint,
+			AllowedIPs: []net.IPNet{*allowedrange},
+		})
+	}
+	return peers
+}
+
+func (d *Daemon) startWireguardInstance(ctx context.Context, privateKey wgtypes.Key, agentInfo *models.AgentInfo) error {
+	link := &netlink.GenericLink{
+		LinkAttrs: netlink.LinkAttrs{
+			Name: d.ifaceName,
+		},
+		LinkType: "wireguard",
+	}
+
+	if err := netlink.LinkAdd(link); err != nil && !os.IsExist(err) {
+		log.Error().Err(err).Msg("can not start wiregaurd interface")
+		return err
+	}
+
+	wgclient, err := wgctrl.New()
+	if err != nil {
+		log.Error().Err(err).Msg("can not create wiregaurd control")
+		return err
+	} else {
+		d.wgctrl = wgclient
+	}
+
+	// get peers
+	peers := d.getWireguardPeers(ctx)
+
+	cfg := wgtypes.Config{
+		PrivateKey: &privateKey,
+		ListenPort: &d.listenPort,
+		Peers:      peers,
+	}
+
+	if err := d.wgctrl.ConfigureDevice(d.ifaceName, cfg); err != nil {
+		return err
+	}
+
+	addr, err := createPrivateIPWithSubnet(agentInfo.PrivateIP, agentInfo.Subnet)
+	if err != nil {
+		return err
+	}
+
+	if err := netlink.AddrAdd(link, addr); err != nil && !os.IsExist(err) {
+		log.Printf("Warning: failed to add IP: %v", err)
+	}
+	if err := netlink.LinkSetUp(link); err != nil {
+		return err
+	}
+
+	// send status online to api
+	_ = d.agentClient.ChangeStatus(ctx, models.Online)
 
 	return nil
 }
