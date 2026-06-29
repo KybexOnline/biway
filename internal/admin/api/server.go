@@ -29,8 +29,55 @@ func registerServerRouter(group *gin.RouterGroup) {
 		api.POST("", serverCreate)
 		api.GET("/me", serverAuthenticate(), agentInfo)
 		api.POST("/set_pubkey", serverAuthenticate(), setPublicKey)
+		api.GET("/peers", serverAuthenticate(), agentPeersHandler)
+		api.PATCH("/status", serverAuthenticate(), changeStatus)
 		api.GET("/:id", serverDetails)
 	}
+}
+
+func agentPeersHandler(c *gin.Context) {
+	s, _ := c.Get(AGENT_KEY)
+	server := s.(models.AgentInfo)
+
+	peers, err := serverService.GetAgentPeersByID(c.Request.Context(), server.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal system error",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": peers,
+	})
+}
+
+func changeStatus(c *gin.Context) {
+	type Req struct {
+		Status models.ServerStatus `json:"status"`
+	}
+
+	var req Req
+
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	s, _ := c.Get(AGENT_KEY)
+	server := s.(models.AgentInfo)
+
+	err := serverService.ChangeAgentStatus(c.Request.Context(), server.ID, req.Status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal system error",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "status successfully changed",
+	})
 }
 
 // TODO: need to change

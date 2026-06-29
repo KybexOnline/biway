@@ -9,4 +9,12 @@ type AgentInfo struct {
 	PrivateIP string       `json:"private_ip"`
 	Status    ServerStatus `json:"status"`
 	PublicKey string       `json:"public_key"`
+	Subnet    string       `json:"subnet"`
+}
+
+type AgentPeer struct {
+	ID        uuid.UUID `json:"id"`
+	PublicIP  string    `json:"public_ip"`
+	PrivateIP string    `json:"private_ip"`
+	PublicKey string    `json:"public_key"`
 }

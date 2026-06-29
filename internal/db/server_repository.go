@@ -21,6 +21,12 @@ type ServerRepository interface {
 	// Update updates all server records that match the filter.
 	// updateData can be a *models.Servers struct or a map[string]interface{}.
 	Update(ctx context.Context, filter *models.Servers, updateData interface{}) error
+
+	// FindAdvanced allows complex filtering using raw query conditions (e.g., "status != ?", "offline")
+	FindAdvanced(ctx context.Context, query interface{}, args ...interface{}) ([]models.Servers, error)
+
+	// FindAdvancedPaginated provides the same complex filtering as FindAdvanced but with pagination included.
+	FindAdvancedPaginated(ctx context.Context, page int, pageSize int, query interface{}, args ...interface{}) ([]models.Servers, int64, error)
 }
 
 type serverRepo struct {
@@ -97,4 +103,42 @@ func (s *serverRepo) Update(ctx context.Context, filter *models.Servers, updateD
 		Model(&models.Servers{}).
 		Where(filter).
 		Updates(updateData).Error
+}
+
+// FindAdvanced allows complex SQL queries and combinations.
+func (s *serverRepo) FindAdvanced(ctx context.Context, query interface{}, args ...interface{}) ([]models.Servers, error) {
+	var servers []models.Servers
+
+	if err := s.db.WithContext(ctx).Model(&models.Servers{}).Where(query, args...).Find(&servers).Error; err != nil {
+		return nil, err
+	}
+
+	return servers, nil
+}
+
+// FindAdvancedPaginated handles advanced combinations while returning total count for paginated results.
+func (s *serverRepo) FindAdvancedPaginated(ctx context.Context, page int, pageSize int, query interface{}, args ...interface{}) ([]models.Servers, int64, error) {
+	var servers []models.Servers
+	var totalRows int64
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	// Setup query with advanced filtering
+	dbQuery := s.db.WithContext(ctx).Model(&models.Servers{}).Where(query, args...)
+
+	if err := dbQuery.Count(&totalRows).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * pageSize
+	if err := dbQuery.Offset(offset).Limit(pageSize).Find(&servers).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return servers, totalRows, nil
 }

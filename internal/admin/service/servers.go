@@ -12,6 +12,7 @@ import (
 	"github.com/KybexOnline/biway/internal/models"
 	"github.com/KybexOnline/biway/pkg/utils"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 	"gorm.io/datatypes"
 )
 
@@ -122,6 +123,7 @@ func (s *ServerService) convertServerToAgent(server models.Servers) models.Agent
 		PrivateIP: server.PrivateIP,
 		Status:    server.Status,
 		PublicKey: server.PublicKey,
+		Subnet:    config.AppConfig.PrivateCIDR,
 	}
 }
 
@@ -149,4 +151,34 @@ func (s *ServerService) SetPublicKey(ctx context.Context, id uuid.UUID, publicKe
 		return models.AgentInfo{}, err
 	}
 	return s.convertServerToAgent(server), nil
+}
+
+func (s *ServerService) GetAgentPeersByID(ctx context.Context, id uuid.UUID) ([]models.AgentPeer, error) {
+	servers, err := s.repo.FindAdvanced(ctx, "status = ? AND id != ?", models.Online, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	peers := make([]models.AgentPeer, 0, len(servers))
+	for _, server := range servers {
+		peers = append(peers, models.AgentPeer{
+			ID:        server.ID,
+			PrivateIP: server.PrivateIP,
+			PublicIP:  server.PublicIP,
+			PublicKey: server.PublicKey,
+		})
+	}
+	log.Debug().Fields(map[string]any{
+		"agent_id": id,
+		"items":    peers,
+	}).Msg("Agent peers list")
+
+	return peers, nil
+}
+
+func (s *ServerService) ChangeAgentStatus(ctx context.Context, id uuid.UUID, status models.ServerStatus) error {
+	return s.repo.Update(ctx, &models.Servers{ID: id}, map[string]any{
+		"status": status,
+	})
 }
