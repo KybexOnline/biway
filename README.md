@@ -1,51 +1,30 @@
-# Biway (Bidirectional Way)
 
-![License](https://img.shields.io/badge/license-Fair%20Code-purple.svg)
-![Deployment](https://img.shields.io/badge/deployment-Self--Hosted-1081c2.svg)
-![WireGuard](https://img.shields.io/badge/Powered%20by-WireGuard-8B0000.svg)
-![React](https://img.shields.io/badge/Frontend-React-61DAFB.svg)
+Biway turns your scattered cloud servers into a single, secure, and high-performance private mesh network — no matter which providers you use (AWS, Hetzner, DigitalOcean, bare metal, etc.).
 
-**Biway** is a modern, self-hosted mesh service designed to orchestrate secure, bidirectional private networks across any infrastructure. Built on top of **WireGuard**, it allows you to effortlessly connect globally distributed servers (across AWS, Hetzner, DigitalOcean, etc.) into isolated mesh networks, entirely managed from your own host and domain.
+Create, manage, modify, and monitor your mesh infrastructure with simplicity and confidence from a centralized, self-hosted dashboard.
+
 
 ## ✨ Features
+* 🌍 Self-Hosted Control Plane: Deploy Biway on your own infrastructure and domain. You own your network, keys, and your data.
 
-- **Self-Hosted Control Plane:** Deploy Biway on your own infrastructure and domain. You own your network and your data.
-- **WireGuard Core:** High-performance, state-of-the-art cryptography for all inter-node communication.
-- **Custom CIDR Management:** Define your own private IP spaces for different environments (e.g., `10.0.0.0/24`).
-- **Frictionless Node Provisioning:** - **Automated Script:** Add nodes with a single command linked directly to your Biway domain.
-  - **SSH Integration:** Drop the public key onto your server for zero-touch configuration.
-- **Smart IP Assignment:** Choose between automatic DHCP-style private IP allocation or strictly enforced manual IP assignment.
-- **Diagnostics & Monitoring:** Built-in inter-node ping testing and latency tracking directly from the React-based dashboard.
+* 🔒 WireGuard® Core: High-performance, state-of-the-art cryptography for all inter-node communication.
 
-## 🚀 Quick Start (Self-Hosted)
+* 🕸️ Frictionless Node Provisioning: Easily add nodes. Agents automatically generate keys and sync peer configurations on the fly.
 
-1. **Deploy Biway:** Spin up the Biway control plane on your own server and point your domain to it (e.g., `biway.yourdomain.com`).
-2. **Create a Network:** Log into your self-hosted panel and create a new network with a designated CIDR.
-3. **Add Nodes:** Click "Add Server to Mesh" and run the generated setup script on your target nodes.
-4. **Verify Connection:** Use the integrated Ping Diagnostics tool to ensure tunnels are active.
+* 🧮 Smart IP Management: Define your custom private CIDR blocks (e.g., 10.35.0.0/24). Biway handles automatic IP allocation and prevents conflicts.
 
-## 📜 Licensing & Usage
+* 📡 Lightweight Agent Daemon: The biway-agent continuously monitors peer states and gracefully updates WireGuard configurations without dropping existing tunnels.
 
-Biway operates under a **Fair-Code / Dual-License** model to keep the project open and accessible while protecting its commercial viability.
 
-- ✅ **Free for Personal & Educational Use:** You can use Biway for free for home labs, learning, and personal projects.
-- ✅ **Free for Small Businesses:** Small companies and startups can use Biway in production environments at no cost.
-- ❌ **Commercial License Required for Large Enterprises:** Big companies utilizing Biway at scale must purchase a commercial license.
-- 🚫 **Strictly Prohibited:** You may **not** use the Biway source code to create, host, or offer a competing commercial SaaS/mesh service. 
+## 🏗️ Architecture
 
-*For enterprise licensing inquiries, please open an issue or contact the maintainer directly.*
+Biway is split into two primary components:
 
-## 🛠 Tech Stack
+1. **biway-admin** (Control Plane): The centralized brain. It serves the REST API, hosts the dashboard, manages the SQLite database, and acts as the source of truth for your mesh network's state.
 
-- **Frontend:** React, Tailwind CSS
-- **Backend & Networking:** WireGuard kernel module integration, high-performance routing.
+2. **biway-agent** (Node Daemon): A lightweight daemon installed on your target servers. It authenticates with the Admin API, fetches peer configurations, and seamlessly configures the local WireGuard interface.
 
-## 👨‍💻 Author
 
-**Amir Arsalan**
-- GitHub: [@amirarsalan](https://github.com/amirarsalan)
-- LinkedIn: [amirarsalanio](https://linkedin.com/in/amirarsalanio)
+## ⚙️ Build 
 
-## 🔒 Security & Privacy
-
-This project strictly adheres to privacy-preserving architecture. By self-hosting Biway, no third-party services are involved in your control plane, and all inter-node traffic operates through end-to-end encrypted WireGuard tunnels.
+[Build Documention](docs/Build_selfhosted.md)
