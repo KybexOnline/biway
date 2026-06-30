@@ -1,0 +1,77 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Build and Publish Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to allow GitHub Actions to create the release
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (For Panel)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build Management Panel
+        run: |
+          echo "Building the panel..."
+          
+          cd panel 
+          
+          npm install
+          env VITE_API_URL=/api/v1 npm run build
+          
+          cd ..
+          
+          echo "Moving static files to the biway static_files directory..."
+          # Ensure the destination directory exists
+          mkdir -p internal/admin/api/static_files
+          
+          # Copy the built files.
+          cp -r panel/dist/* internal/admin/api/static_files/
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Build Agent and Admin
+        run: |
+          # Create a dist directory to hold all the final binaries
+          mkdir -p dist
+          
+          # Define the OS and Architecture targets you want to support
+          targets=("linux/amd64" "linux/arm64")
+          
+          for target in "${targets[@]}"; do
+            GOOS=${target%/*}
+            GOARCH=${target#*/}
+            
+            EXT=""
+            if [ "$GOOS" = "windows" ]; then
+              EXT=".exe"
+            fi
+            
+            echo "Building Agent for $GOOS/$GOARCH..."
+            env GOOS=$GOOS GOARCH=$GOARCH go build -o dist/biway-agent-$GOOS-$GOARCH$EXT ./cmd/agent
+            
+            echo "Building Admin for $GOOS/$GOARCH..."
+            env GOOS=$GOOS GOARCH=$GOARCH go build -o dist/biway-admin-$GOOS-$GOARCH$EXT ./cmd/admin
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
