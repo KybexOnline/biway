@@ -25,13 +25,13 @@ func registerServerRouter(group *gin.RouterGroup) {
 
 	api := group.Group("/servers")
 	{
-		api.GET("", serverList)
-		api.POST("", serverCreate)
+		api.GET("", adminAuthenticate(), serverList)
+		api.POST("", adminAuthenticate(), serverCreate)
 		api.GET("/me", serverAuthenticate(), agentInfo)
 		api.POST("/set_pubkey", serverAuthenticate(), setPublicKey)
 		api.GET("/peers", serverAuthenticate(), agentPeersHandler)
 		api.PATCH("/status", serverAuthenticate(), changeStatus)
-		api.GET("/:id", serverDetails)
+		api.GET("/:id", adminAuthenticate(), serverDetails)
 	}
 }
 

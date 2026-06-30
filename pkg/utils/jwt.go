@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -31,7 +32,7 @@ func NewJWTHelper(secret string) *JWTHelper {
 
 func (j *JWTHelper) GenerateTokenById(id any) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": id,
+		"sub": fmt.Sprintf("%v", id),
 		"exp": time.Now().Add(1 * time.Hour).Unix(),
 	})
 
