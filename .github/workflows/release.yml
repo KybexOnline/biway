@@ -49,6 +49,13 @@ jobs:
           # Create a dist directory to hold all the final binaries
           mkdir -p dist
           
+          # Extract Version (from tag) and Commit Hash
+          VERSION=${GITHUB_REF_NAME}
+          COMMIT_HASH=${GITHUB_SHA}
+          
+          # Define ldflags to inject variables into the Go binary
+          LDFLAGS="-X 'github.com/KybexOnline/biway/pkg/utils.Version=${VERSION}' -X 'github.com/KybexOnline/biway/pkg/utils.CommitHash=${COMMIT_HASH}'"
+          
           # Define the OS and Architecture targets you want to support
           targets=("linux/amd64" "linux/arm64")
           
@@ -62,10 +69,10 @@ jobs:
             fi
             
             echo "Building Agent for $GOOS/$GOARCH..."
-            env GOOS=$GOOS GOARCH=$GOARCH go build -o dist/biway-agent-$GOOS-$GOARCH$EXT ./cmd/agent
+            env GOOS=$GOOS GOARCH=$GOARCH go build -ldflags="$LDFLAGS" -o dist/biway-agent-$GOOS-$GOARCH$EXT ./cmd/agent
             
             echo "Building Admin for $GOOS/$GOARCH..."
-            env GOOS=$GOOS GOARCH=$GOARCH go build -o dist/biway-admin-$GOOS-$GOARCH$EXT ./cmd/admin
+            env GOOS=$GOOS GOARCH=$GOARCH go build -ldflags="$LDFLAGS" -o dist/biway-admin-$GOOS-$GOARCH$EXT ./cmd/admin
           done
 
       - name: Create GitHub Release
