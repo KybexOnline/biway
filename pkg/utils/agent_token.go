@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	TokenPrefix = "bitway_agent_"
+	TokenPrefix = "biway_agent_"
 	ByteLength  = 32 // 256 bits of entropy
 )
 

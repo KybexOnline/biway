@@ -60,6 +60,8 @@ func InitAdminRouter() *gin.Engine {
 		}
 	})
 
+	engine.GET("install-agent.sh", installScriptHandler)
+
 	api := engine.Group("/api/v1")
 	{
 		api.GET("/health", func(ctx *gin.Context) {
