@@ -4,9 +4,31 @@
   <img src="assets/logo.svg" width="220" alt="Biway">
 </p>
 
+[![Release](https://img.shields.io/github/v/release/KybexOnline/biway.svg?style=flat-square)](https://github.com/KybexOnline/biway/releases)
+
 Biway is a self-hosted WireGuard® mesh networking platform that securely connects servers across multiple cloud providers, data centers, VPS providers, and bare-metal environments into a single private network.
 
 Whether your infrastructure spans AWS, Hetzner, DigitalOcean, Oracle Cloud, Azure, GCP, or your own hardware, Biway automates peer configuration, IP allocation, and WireGuard management through a centralized web interface.
+
+---
+
+## 🚀 Quick Install (Recommended)
+
+Install **biway-admin** with a single command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/KybexOnline/biway/main/install.sh | bash - 
+```
+
+This script will:
+* Download the latest biway-admin binary
+* Set up the necessary directories and systemd service (if desired)
+* Initialize the database
+* Start the server
+
+After installation, open your browser to http://your-server-ip:8500 and complete the setup wizard.
+
+
 
 ---
 
