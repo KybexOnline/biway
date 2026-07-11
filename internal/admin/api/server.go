@@ -9,6 +9,7 @@ import (
 	"github.com/KybexOnline/biway/internal/admin/service"
 	"github.com/KybexOnline/biway/internal/db"
 	"github.com/KybexOnline/biway/internal/models"
+	"github.com/KybexOnline/biway/pkg/apperrors"
 )
 
 var serverService *service.ServerService
@@ -134,38 +135,24 @@ func serverDetails(c *gin.Context) {
 }
 
 type serverListReq struct {
-	Start int `form:"_start" binding:"omitempty,min=0"` // offset
-	End   int `form:"_end" binding:"omitempty,min=0"`   // limit = end - start
+	Page  int `form:"page" binding:"omitempty,min=0"`  // offset
+	Limit int `form:"limit" binding:"omitempty,min=5"` // limit = end - start
 }
 
 func serverList(c *gin.Context) {
 	var req serverListReq
 
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apperrors.HandleError(c, err)
 		return
 	}
-
-	// Default values if not provided
-	if req.End == 0 {
-		req.End = 10 // default page size
-	}
-	if req.Start < 0 {
-		req.Start = 0
-	}
-
-	limit := req.End - req.Start
-	if limit <= 0 {
-		limit = 10
-	}
-
 	ctx := c.Request.Context()
 
 	servers, total, err := serverService.List(
 		ctx,
 		&models.Servers{},
-		req.Start, // offset
-		limit,     // limit
+		req.Page,
+		req.Limit,
 	)
 
 	if err != nil {
@@ -178,8 +165,8 @@ func serverList(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"items": servers,
 		"total": total,
-		"page":  (req.Start / limit) + 1,
-		"limit": limit,
+		"page":  req.Page,
+		"limit": req.Limit,
 		"count": len(servers),
 	})
 }
@@ -211,9 +198,8 @@ func serverCreate(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "internal system error",
-		})
+
+		apperrors.HandleError(c, err)
 		return
 	}
 

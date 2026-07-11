@@ -3,13 +3,14 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"net/http"
 	"slices"
 
 	"github.com/KybexOnline/biway/internal/config"
 	"github.com/KybexOnline/biway/internal/db"
 	"github.com/KybexOnline/biway/internal/models"
+	"github.com/KybexOnline/biway/pkg/apperrors"
 	"github.com/KybexOnline/biway/pkg/utils"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -54,18 +55,34 @@ func (s *ServerService) Create(
 		if err != nil {
 			return models.Servers{}, err
 		} else if !check {
-			return models.Servers{}, errors.New("private ip is invalid")
+			return models.Servers{}, apperrors.NewAppError(
+				http.StatusBadRequest, apperrors.VALIDATION, "Private IP is invalid",
+				[]map[string]string{
+					{
+						"field":   "private_ip",
+						"message": fmt.Sprintf("%s is not valid in %s CIDR", private_ip, config.AppConfig.PrivateCIDR),
+					},
+				},
+			)
 		}
 
 		check = slices.Contains(usedIPs, private_ip)
 		if check {
-			return models.Servers{}, errors.New("private ip is taken.")
+			return models.Servers{}, apperrors.NewAppError(
+				http.StatusBadRequest, apperrors.VALIDATION, "Private IP is taken",
+				[]map[string]string{
+					{
+						"field":   "private_ip",
+						"message": fmt.Sprintf("Private IP is taken (%s)", private_ip),
+					},
+				},
+			)
 		}
 
 	} else {
 		private_ip, err = utils.GetNextAvailableIP(config.AppConfig.PrivateCIDR, usedIPs, false)
 		if err != nil {
-			return models.Servers{}, err
+			return models.Servers{}, apperrors.ErrInternalServer(err.Error())
 		}
 	}
 
