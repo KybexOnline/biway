@@ -35,6 +35,14 @@ func (s *ServerService) GetById(ctx context.Context, id string) (models.Servers,
 	return s.repo.FindOne(ctx, &models.Servers{ID: uuids})
 }
 
+func (s *ServerService) DeleteById(ctx context.Context, id string) error {
+	uuids, err := uuid.Parse(id)
+	if err != nil {
+		return err
+	}
+	return s.repo.DeleteByID(ctx, uuids)
+}
+
 func (s *ServerService) List(ctx context.Context, filter *models.Servers, page int, pageSize int) ([]models.Servers, int64, error) {
 	return s.repo.FindPaginated(ctx, filter, page, pageSize)
 }

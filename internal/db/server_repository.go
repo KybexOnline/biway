@@ -27,6 +27,9 @@ type ServerRepository interface {
 
 	// FindAdvancedPaginated provides the same complex filtering as FindAdvanced but with pagination included.
 	FindAdvancedPaginated(ctx context.Context, page int, pageSize int, query interface{}, args ...interface{}) ([]models.Servers, int64, error)
+
+	// DeleteByID deletes a server record by its primary key ID.
+	DeleteByID(ctx context.Context, id interface{}) error
 }
 
 type serverRepo struct {
@@ -141,4 +144,9 @@ func (s *serverRepo) FindAdvancedPaginated(ctx context.Context, page int, pageSi
 	}
 
 	return servers, totalRows, nil
+}
+
+// DeleteByID deletes a server record by its primary key ID.
+func (s *serverRepo) DeleteByID(ctx context.Context, id interface{}) error {
+	return s.db.WithContext(ctx).Delete(&models.Servers{}, id).Error
 }

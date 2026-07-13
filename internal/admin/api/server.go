@@ -33,7 +33,28 @@ func registerServerRouter(group *gin.RouterGroup) {
 		api.GET("/peers", serverAuthenticate(), agentPeersHandler)
 		api.PATCH("/status", serverAuthenticate(), changeStatus)
 		api.GET("/:id", adminAuthenticate(), serverDetails)
+		api.DELETE("/:id", adminAuthenticate(), deleteServer)
 	}
+}
+
+func deleteServer(c *gin.Context) {
+	serverId := c.Param("id")
+	if serverId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "id is required",
+		})
+		return
+	}
+
+	err := serverService.DeleteById(c.Request.Context(), serverId)
+	if err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Server deleted successfully",
+	})
 }
 
 func agentPeersHandler(c *gin.Context) {
