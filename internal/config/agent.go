@@ -83,7 +83,7 @@ func CheckAgentConfig() {
 		os.Exit(1)
 	}
 
-	fmt.Println("✅ Default configuration su 	ccessfully created!")
+	fmt.Println("✅ Default configuration successfully created!")
 }
 
 func LoadAgentConfig() {

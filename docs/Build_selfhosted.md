@@ -8,7 +8,7 @@ This guide explains how to build and deploy Biway from source.
 
 Before building Biway, ensure your system has:
 
-- Go 1.24 or newer
+- Go 1.26+
 - Git
 - SQLite
 - WireGuard (required on Agent nodes)

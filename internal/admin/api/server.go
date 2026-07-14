@@ -142,6 +142,7 @@ func serverDetails(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "id is required",
 		})
+		return
 	}
 	ctx := c.Request.Context()
 	server, err := serverService.GetById(ctx, server_id)
@@ -196,7 +197,7 @@ type serverCreateReq struct {
 	Name      string   `json:"name" form:"name" binding:"required"`
 	Tags      []string `json:"tags" form:"tags"`
 	Provider  string   `json:"provider" form:"provider"`
-	PublicIP  string   `json:"public_ip" form:"public_ip" bindig:"required"`
+	PublicIP  string   `json:"public_ip" form:"public_ip" binding:"required"`
 	PrivateIP string   `json:"private_ip" form:"private_ip"`
 }
 
@@ -205,10 +206,7 @@ func serverCreate(c *gin.Context) {
 	var req serverCreateReq
 
 	if err := c.ShouldBind(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"status": "error",
-			"error":  err.Error(),
-		})
+		apperrors.HandleError(c, err)
 		return
 	}
 

@@ -11,10 +11,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewDaemon() any {
-	return false
-}
-
 func startCommand() *cobra.Command {
 
 	var ifaceName string
