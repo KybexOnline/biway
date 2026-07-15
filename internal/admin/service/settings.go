@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/KybexOnline/biway/internal/db"
 	"github.com/KybexOnline/biway/internal/models"
+	"github.com/KybexOnline/biway/pkg/apperrors"
 )
 
 type SettingsService struct {
@@ -149,7 +151,10 @@ func (s *SettingsService) AddProvider(ctx context.Context, p models.Provider) er
 	}
 	for _, existing := range providers {
 		if existing.Code == p.Code {
-			return fmt.Errorf("provider %q already exists", p.Code)
+			return apperrors.NewAppError(
+				http.StatusConflict, apperrors.CONFLICT,
+				fmt.Sprintf("provider %q already exists", p.Code), nil,
+			)
 		}
 	}
 	providers = append(providers, p)
