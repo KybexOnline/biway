@@ -1,10 +1,13 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/KybexOnline/biway/internal/admin/service"
 	"github.com/KybexOnline/biway/internal/db"
+	"github.com/KybexOnline/biway/pkg/apperrors"
 	"github.com/KybexOnline/biway/pkg/utils"
 	"github.com/gin-gonic/gin"
 )
@@ -29,6 +32,7 @@ func registerAdminRouter(group *gin.RouterGroup) {
 	{
 		api.POST("/login", adminLogin)
 		api.POST("/initial", initial)
+		api.POST("/change-password", adminAuthenticate(), changePassword)
 	}
 }
 
@@ -183,5 +187,47 @@ func initial(c *gin.Context) {
 	// StatusCreated (201) indicates a resource was successfully created.
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "system successfully initialized",
+	})
+}
+
+type changePasswordReq struct {
+	CurrentPassword string `form:"current_password" json:"current_password" binding:"required"`
+	Password        string `form:"password" json:"password" binding:"required"`
+}
+
+func changePassword(c *gin.Context) {
+	var req changePasswordReq
+
+	if err := c.ShouldBind(&req); err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+
+	adminId := c.GetString("admin_id")
+	id, err := strconv.ParseUint(adminId, 10, 64)
+	fmt.Printf("admin => %s = %d ---> %v", adminId, id, err)
+	admin, err := adminService.FindById(c.Request.Context(), uint(id))
+	if err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+
+	passwordCheck, err := utils.VerifyPassword(req.CurrentPassword, admin.PasswordHash)
+
+	if err != nil || !passwordCheck {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Current password is incorrect",
+		})
+		return
+	}
+
+	err = adminService.ChangePassword(c.Request.Context(), adminId, req.Password)
+	if err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "password successfully changed",
 	})
 }
