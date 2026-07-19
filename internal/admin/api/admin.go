@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -33,6 +32,10 @@ func registerAdminRouter(group *gin.RouterGroup) {
 		api.POST("/login", adminLogin)
 		api.POST("/initial", initial)
 		api.POST("/change-password", adminAuthenticate(), changePassword)
+		api.GET("/2fa/enable", adminAuthenticate(), enable2FA)
+		api.GET("/2fa/status", adminAuthenticate(), status2FA)
+		api.POST("/2fa/verify", adminAuthenticate(), verifyEnabling2FA)
+		api.POST("/2fa/disable", adminAuthenticate(), disable2FA)
 	}
 }
 
@@ -205,7 +208,6 @@ func changePassword(c *gin.Context) {
 
 	adminId := c.GetString("admin_id")
 	id, err := strconv.ParseUint(adminId, 10, 64)
-	fmt.Printf("admin => %s = %d ---> %v", adminId, id, err)
 	admin, err := adminService.FindById(c.Request.Context(), uint(id))
 	if err != nil {
 		apperrors.HandleError(c, err)
@@ -229,5 +231,75 @@ func changePassword(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "password successfully changed",
+	})
+}
+
+func enable2FA(c *gin.Context) {
+	adminId, err := adminService.GetAdminIdFromContext(c)
+	authSecret, err := adminService.CreateSecretAuthenticator(c.Request.Context(), adminId)
+	if err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"data": authSecret,
+	})
+}
+
+func verifyEnabling2FA(c *gin.Context) {
+	var req struct {
+		Code string `json:"code"`
+	}
+
+	if err := c.ShouldBind(&req); err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+
+	adminId, err := adminService.GetAdminIdFromContext(c)
+	if err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+
+	err = adminService.Enable2FA(c.Request.Context(), adminId, req.Code)
+
+	if err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "succcessfully enabled 2fa",
+	})
+}
+
+func status2FA(c *gin.Context) {
+	adminId, err := adminService.GetAdminIdFromContext(c)
+	admin, err := adminService.FindById(c.Request.Context(), adminId)
+	if err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"tfa": admin.EnabledAuthenticator,
+		},
+	})
+}
+
+func disable2FA(c *gin.Context) {
+	adminId, err := adminService.GetAdminIdFromContext(c)
+	if err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+
+	err = adminService.Disable2Fa(c.Request.Context(), adminId)
+	if err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Your 2fa succcessfully disabled",
 	})
 }

@@ -12,6 +12,7 @@ type AdminRepository interface {
 	FindOne(ctx context.Context, admin *models.Admin) (models.Admin, error)
 	FindById(ctx context.Context, id any) (models.Admin, error)
 	UpdateById(ctx context.Context, id any, update models.Admin) error
+	UpdateSingleById(ctx context.Context, id any, column string, value any) error
 	First(ctx context.Context) (models.Admin, error)
 }
 
@@ -33,6 +34,11 @@ func (r *adminRepo) FindById(ctx context.Context, id any) (models.Admin, error) 
 
 func (r *adminRepo) UpdateById(ctx context.Context, id any, update models.Admin) error {
 	_, err := gorm.G[models.Admin](r.db).Where("id = ?", id).Updates(ctx, update)
+	return err
+}
+
+func (r *adminRepo) UpdateSingleById(ctx context.Context, id any, column string, value any) error {
+	_, err := gorm.G[models.Admin](r.db).Where("id = ?", id).Update(ctx, column, value)
 	return err
 }
 
