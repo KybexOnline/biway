@@ -30,6 +30,7 @@ func registerAdminRouter(group *gin.RouterGroup) {
 	api := group.Group("/admin")
 	{
 		api.POST("/login", adminLogin)
+		api.POST("/2fa/login-verify", verifyLogin2FA)
 		api.POST("/initial", initial)
 		api.POST("/change-password", adminAuthenticate(), changePassword)
 		api.GET("/2fa/enable", adminAuthenticate(), enable2FA)
@@ -54,30 +55,50 @@ func adminLogin(c *gin.Context) {
 		})
 		return
 	}
-	ctx := c.Request.Context()
-	admin, err := adminService.FindByUsername(ctx, login.User)
+
+	result, err := adminService.Login(c.Request.Context(), login.User, login.Password)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "User or password is incorrect",
+		apperrors.HandleError(c, err)
+		return
+	}
+
+	if result.TwoFARequired {
+		c.JSON(http.StatusOK, gin.H{
+			"two_fa_required": true,
+			"pending_token":   result.PendingToken,
 		})
 		return
 	}
 
-	passwordCheck, err := utils.VerifyPassword(login.Password, admin.PasswordHash)
+	c.JSON(http.StatusOK, gin.H{
+		"token": result.Token,
+	})
+}
 
-	if err != nil || !passwordCheck {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "User or password is incorrect",
+type verifyLogin2FARequest struct {
+	PendingToken string `json:"pending_token" form:"pending_token" binding:"required"`
+	Code         string `json:"code" form:"code" binding:"required"`
+}
+
+func verifyLogin2FA(c *gin.Context) {
+	var req verifyLogin2FARequest
+
+	if err := c.ShouldBind(&req); err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+
+	adminId, err := utils.JWT.ParsePendingTokenId(req.PendingToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Invalid or expired login session, please log in again",
 		})
 		return
 	}
 
-	token, err := utils.JWT.GenerateTokenById(admin.ID)
-
+	token, err := adminService.VerifyLogin2FA(c.Request.Context(), adminId, req.Code)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "internal system error",
-		})
+		apperrors.HandleError(c, err)
 		return
 	}
 

@@ -4,6 +4,7 @@ type AppErrorCode string
 
 const VALIDATION AppErrorCode = "VALIDATION_FAILED"
 const CONFLICT AppErrorCode = "CONFLICT"
+const UNAUTHORIZED AppErrorCode = "UNAUTHORIZED"
 
 type AppError struct {
 	HTTPCode int          `json:"-"`

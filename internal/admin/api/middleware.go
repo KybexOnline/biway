@@ -48,14 +48,7 @@ func adminAuthenticate() gin.HandlerFunc {
 			return
 		}
 
-		claims, err := utils.JWT.ValidateToken(authToken[1])
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": "Unauthorized",
-			})
-			return
-		}
-		id, err := claims.GetSubject()
+		id, err := utils.JWT.ValidateSessionToken(authToken[1])
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "Unauthorized",
