@@ -69,10 +69,11 @@ func (d *Daemon) Run(ctx context.Context) error {
 		}
 	}()
 
-	d.wGroup.Add(1)
+	d.wGroup.Add(2)
 
 	// setup worker
 	go d.pollPeersWorker(ctx)
+	go d.monitoringWorker(ctx)
 
 	log.Info().Msg("Daemon is running. Press Ctrl+C to stop.")
 
@@ -86,6 +87,27 @@ func (d *Daemon) Run(ctx context.Context) error {
 
 	log.Info().Msg("All workers finished. Exiting...")
 	return nil
+}
+
+func (d *Daemon) monitoringWorker(ctx context.Context) {
+	defer d.wGroup.Done()
+	d.agentClient.SendAgentInfo(ctx)
+	ticker := time.NewTicker(d.monitoringInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info().Msg("Stopping monitoring worker...")
+			return
+		case <-ticker.C:
+			if err := d.agentClient.SendMonitoringData(ctx); err != nil {
+				log.Error().Err(err).Msg("Failed to send monitoring data")
+			} else {
+				log.Info().Msg("Successfully send monitoring data")
+			}
+		}
+	}
 }
 
 // pollPeersWorker periodically fetches peers from the API and syncs them

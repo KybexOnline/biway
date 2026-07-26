@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	"github.com/KybexOnline/biway/internal/models"
+	"github.com/KybexOnline/biway/pkg/utils"
+	"github.com/amirarsalan/osdetect"
 	"github.com/rs/zerolog/log"
 	"resty.dev/v3"
 )
@@ -88,6 +90,35 @@ func (a *AgentClient) ChangeStatus(ctx context.Context, status models.ServerStat
 		log.Error().Err(fmt.Errorf("%s", res.String())).Msg("api return error")
 		return fmt.Errorf("Could not change the status")
 	}
+	return nil
+}
+
+func (a *AgentClient) SendAgentInfo(ctx context.Context) {
+	osInfo := osdetect.GetInfo()
+	_, err := a.http.R().
+		SetContext(ctx).
+		SetBody(map[string]any{
+			// OS Info
+			"os":           string(osInfo.Family),
+			"distro":       osInfo.Name,
+			"version":      osInfo.Version,
+			"architecture": osInfo.Arch,
+			"kernel":       osInfo.Kernel,
+			"raw":          osInfo.Raw,
+			// Agent Info
+			"agent_commit":  utils.CommitHash,
+			"agent_version": utils.Version,
+		}).
+		Patch("/servers/info")
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to send os info")
+		return
+	}
+	log.Info().Msg("Successfully assign os info for agent")
+}
+
+// TODO: to implement calculate network latency between other peers
+func (a *AgentClient) SendMonitoringData(ctx context.Context) error {
 	return nil
 }
 
