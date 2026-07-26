@@ -1,39 +1,43 @@
-.mesh-background::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: 
-    linear-gradient(rgba(139, 92, 246, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(139, 92, 246, 0.08) 1px, transparent 1px);
-  background-size: 60px 60px;
-  /* animation: meshMove 35s linear infinite; */
-  pointer-events: none;
-  z-index: 1;
+@import "tailwindcss";
+@import "@heroui/styles";
+
+@theme {
+  --color-primary: #a78bfa;
+  --color-primary-fixed-dim: #c4b5fd;
+  --color-primary-container: #7c3aed;
+  --color-on-primary-container: #ede9fe;
+  --color-on-primary: #0a0012;
+  
+  --color-background: #09090b;
+  --color-surface: #0c0c0f;
+  --color-surface-dim: #0c0c0f;
+  --color-surface-variant: #18181b;
+  --color-surface-container-lowest: #09090b;
+  --color-surface-container-low: #0f0f12;
+  --color-surface-container: #121215;
+  --color-surface-container-high: #18181b;
+  --color-surface-container-highest: #1e1e22;
+
+  --color-on-background: #fafafa;
+  --color-on-surface: #fafafa;
+  --color-on-surface-variant: #a1a1aa;
+  
+  --color-outline: #52525b;
+  --color-outline-variant: #27272a;
+  
+  --color-secondary: #71717a;
+  --color-secondary-container: #27272a;
+  
+  --color-tertiary: #34d399;
+  --color-on-tertiary: #001a12;
+  --color-error: #ef4444;
+
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, monospace;
 }
 
-.mesh-background::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle, rgba(167, 139, 250, 0.15) 0%, transparent 70%);
-  /* animation: pulseGlow 15s ease-in-out infinite alternate; */
-  pointer-events: none;
-  z-index: 2;
-}
-
-/* Optional: Extra floating particles */
-.mesh-background {
-  position: relative;
-}
-
-.mesh-background::before {
-  box-shadow: 
-    0 0 80px rgba(139, 92, 246, 0.3),
-    0 0 160px rgba(236, 72, 153, 0.15);
+@layer utilities {
+  .glow-effect {
+    box-shadow: 0 0 40px -10px rgba(167, 139, 250, 0.3);
+  }
 }

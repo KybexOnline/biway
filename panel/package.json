@@ -1,58 +1,43 @@
 {
-  "name": "panel",
-  "version": "0.1.0",
+  "name": "biway-panel",
   "private": true,
+  "version": "0.0.0",
   "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
   "dependencies": {
-    "@refinedev/cli": "^2.16.48",
-    "@refinedev/core": "^5.0.8",
-    "@refinedev/devtools": "^2.0.1",
-    "@refinedev/kbar": "^2.0.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "react-router": "^7.0.2",
-    "@refinedev/rest": "^2.1.0",
-    "@refinedev/antd": "^6.0.1",
-    "antd": "^5.23.0",
-    "@ant-design/icons": "^5.5.1",
-    "@uiw/react-md-editor": "^4.0.8",
-    "@refinedev/react-router": "^2.0.0"
+    "@heroui/react": "^3.2.2",
+    "@heroui/styles": "^3.2.2",
+    "@hookform/resolvers": "^5.4.0",
+    "@iconify/react": "^6.0.2",
+    "@tailwindcss/vite": "^4.3.2",
+    "axios": "^1.18.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "lucide-react": "^1.23.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-hook-form": "^7.80.0",
+    "react-qr-code": "^2.2.0",
+    "react-router-dom": "^7.18.1",
+    "tailwindcss": "^4.3.2"
   },
   "devDependencies": {
-    "@eslint/js": "^9.25.0",
-    "@types/node": "^20",
-    "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0",
-    "@typescript-eslint/eslint-plugin": "^5.57.1",
-    "@typescript-eslint/parser": "^5.57.1",
-    "@vitejs/plugin-react": "^4.4.1",
-    "eslint": "^9.25.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.19",
-    "globals": "^16.0.0",
-    "typescript-eslint": "^8.30.1",
-    "vite": "^6.3.5",
-    "typescript": "^5.8.3"
-  },
-  "scripts": {
-    "dev": "refine dev",
-    "build": "tsc && refine build",
-    "start": "refine start",
-    "refine": "refine"
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "refine": {
-    "projectId": "ShQaWG-8mzJ2M-30grub"
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "eslint": "^10.6.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.7.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.62.0",
+    "vite": "^8.1.1"
   }
 }
