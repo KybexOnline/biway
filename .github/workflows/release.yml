@@ -27,8 +27,8 @@ jobs:
           
           cd panel 
           
-          npm install
-          env VITE_API_URL=/api/v1 npm run build
+          yarn install
+          env VITE_API_URL=/api/v1 yarn run build
           
           cd ..
           
