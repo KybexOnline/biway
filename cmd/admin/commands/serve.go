@@ -27,7 +27,6 @@ func serverCommand() *cobra.Command {
 		Use:   "serve",
 		Short: "serve the admin panel and api",
 		Run: func(cmd *cobra.Command, args []string) {
-
 			config.LoadConfig(configPath)
 
 			_, err := db.GetDatabaseConnection(dbPath)
@@ -46,6 +45,7 @@ func serverCommand() *cobra.Command {
 
 			go func() {
 				// service connections
+				log.Info().Msgf("Starting web server on %s", listenAddr)
 				if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 					log.Info().Msgf("listen: %s\n", err)
 				}

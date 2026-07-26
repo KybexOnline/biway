@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/KybexOnline/biway/internal/admin/service"
 	"github.com/KybexOnline/biway/internal/db"
@@ -22,19 +23,62 @@ func registerServerRouter(group *gin.RouterGroup) {
 	}
 
 	repo := db.NewServerRepository(dbConn)
-	serverService = service.NewServerService(repo)
+	serverInfoRepo := db.NewServerInfoRepository(dbConn)
+	serverService = service.NewServerService(repo, serverInfoRepo)
 
 	api := group.Group("/servers")
 	{
 		api.GET("", adminAuthenticate(), serverList)
 		api.POST("", adminAuthenticate(), serverCreate)
+		api.GET("/:id/info", adminAuthenticate(), getAgentOSInfo)
+
 		api.GET("/me", serverAuthenticate(), agentInfo)
 		api.POST("/set_pubkey", serverAuthenticate(), setPublicKey)
+		api.PATCH("/info", serverAuthenticate(), updateAgentOSInfo)
 		api.GET("/peers", serverAuthenticate(), agentPeersHandler)
 		api.PATCH("/status", serverAuthenticate(), changeStatus)
 		api.GET("/:id", adminAuthenticate(), serverDetails)
 		api.DELETE("/:id", adminAuthenticate(), deleteServer)
 	}
+}
+
+func getAgentOSInfo(c *gin.Context) {
+	id := c.Param("id")
+	serverId, err := uuid.Parse(id)
+	if err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+	info, err := serverService.GetAgentOSInfo(c.Request.Context(), serverId)
+	if err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, info)
+}
+
+func updateAgentOSInfo(c *gin.Context) {
+	var req models.AgentOSInfoUpdate
+
+	if err := c.ShouldBind(&req); err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+
+	s, _ := c.Get(AGENT_KEY)
+	server := s.(models.AgentInfo)
+
+	err := serverService.UpdateAgentOSInfo(c.Request.Context(), server.ID, req)
+
+	if err != nil {
+		apperrors.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "info successfully update",
+	})
 }
 
 func deleteServer(c *gin.Context) {

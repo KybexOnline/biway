@@ -18,12 +18,14 @@ import (
 )
 
 type ServerService struct {
-	repo db.ServerRepository
+	repo           db.ServerRepository
+	serverInfoRepo db.ServerInfoRepository
 }
 
-func NewServerService(repo db.ServerRepository) *ServerService {
+func NewServerService(repo db.ServerRepository, serverInfoRepo db.ServerInfoRepository) *ServerService {
 	return &ServerService{
-		repo: repo,
+		repo:           repo,
+		serverInfoRepo: serverInfoRepo,
 	}
 }
 
@@ -206,4 +208,32 @@ func (s *ServerService) ChangeAgentStatus(ctx context.Context, id uuid.UUID, sta
 	return s.repo.Update(ctx, &models.Servers{ID: id}, map[string]any{
 		"status": status,
 	})
+}
+
+func (s *ServerService) UpdateAgentOSInfo(ctx context.Context, serverId uuid.UUID, update models.AgentOSInfoUpdate) error {
+
+	rawBytes, err := json.Marshal(update.Raw)
+	if err != nil {
+		return fmt.Errorf("failed to marshal raw: %w", err)
+	}
+
+	info := models.ServerInfo{
+		ServerID:     serverId,
+		OS:           update.OS,
+		Distro:       update.Distro,
+		Version:      update.Version,
+		Arch:         update.Arch,
+		Kernel:       update.Kernel,
+		AgentCommit:  update.AgentCommit,
+		AgentVersion: update.AgentVersion,
+		RawData:      datatypes.JSON(rawBytes),
+	}
+
+	err = s.serverInfoRepo.CreateOrUpdate(ctx, &info)
+
+	return err
+}
+
+func (s *ServerService) GetAgentOSInfo(ctx context.Context, serverId uuid.UUID) (models.ServerInfo, error) {
+	return s.serverInfoRepo.FindByServerID(ctx, serverId)
 }

@@ -22,7 +22,7 @@ func migrationCommand() *cobra.Command {
 				panic(err)
 			}
 
-			err = gormDB.AutoMigrate(&models.Admin{}, &models.Servers{}, &models.Setting{})
+			err = gormDB.AutoMigrate(&models.Admin{}, &models.Servers{}, &models.Setting{}, &models.ServerInfo{})
 			if err != nil {
 				panic(err)
 			}
