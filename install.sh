@@ -1,6 +1,5 @@
 #!/bin/bash
 # Biway Admin Installer
-
 set -e
 
 # Colors
@@ -50,7 +49,46 @@ fi
 # Get latest release
 echo -e "${YELLOW}Fetching latest release...${NC}"
 LATEST_RELEASE=$(curl -s https://api.github.com/repos/KybexOnline/biway/releases/latest | jq -r '.tag_name')
-echo -e "Latest version: ${GREEN}$LATEST_RELEASE${NC}"
+
+if [[ -z "$LATEST_RELEASE" || "$LATEST_RELEASE" == "null" ]]; then
+    echo -e "${RED}Failed to fetch latest release info (GitHub API may be rate-limited or unreachable).${NC}"
+    exit 1
+fi
+
+echo -e "Latest version available: ${GREEN}$LATEST_RELEASE${NC}"
+
+# === Check for existing installation ===
+BINARY_PATH="/usr/local/bin/biway-admin"
+CURRENT_VERSION=""
+
+if [ -x "$BINARY_PATH" ]; then
+    VERSION_OUTPUT=$("$BINARY_PATH" --version 2>/dev/null || true)
+    CURRENT_VERSION=$(echo "$VERSION_OUTPUT" | grep -i '^Version:' | sed -E 's/^Version:[[:space:]]*//')
+
+    if [ -z "$CURRENT_VERSION" ]; then
+        CURRENT_VERSION="unknown (binary present but version could not be read)"
+    fi
+
+    echo -e "\n${YELLOW}An existing installation was found.${NC}"
+    echo -e "Currently installed: ${RED}${CURRENT_VERSION}${NC}"
+    echo -e "Available to install: ${GREEN}${LATEST_RELEASE}${NC}"
+
+    read -p "Remove the current installation and install ${LATEST_RELEASE}? [y/N]: " CONFIRM_REINSTALL
+    CONFIRM_REINSTALL=${CONFIRM_REINSTALL:-N}
+
+    if [[ ! "$CONFIRM_REINSTALL" =~ ^[Yy]$ ]]; then
+        echo -e "${YELLOW}Keeping existing installation. No changes made.${NC}"
+        exit 0
+    fi
+
+    echo -e "${YELLOW}Stopping existing service (if running)...${NC}"
+    systemctl stop biway-admin 2>/dev/null || true
+
+    echo -e "${YELLOW}Removing existing binary...${NC}"
+    rm -f "$BINARY_PATH"
+else
+    echo -e "${GREEN}No existing installation found. Proceeding with fresh install.${NC}"
+fi
 
 # Detect architecture
 ARCH=$(uname -m)
@@ -66,20 +104,19 @@ fi
 DOWNLOAD_URL="https://github.com/KybexOnline/biway/releases/download/${LATEST_RELEASE}/${BINARY}"
 
 # Download binary
-echo -e "${YELLOW}Downloading biway-admin...${NC}"
-wget -q --show-progress "$DOWNLOAD_URL" -O /usr/local/bin/biway-admin
-chmod +x /usr/local/bin/biway-admin
+echo -e "${YELLOW}Downloading biway-admin ${LATEST_RELEASE}...${NC}"
+wget -q --show-progress "$DOWNLOAD_URL" -O "$BINARY_PATH"
+chmod +x "$BINARY_PATH"
 
 # Create directories
 INSTALL_DIR="/opt/biway"
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
-echo -e "${GREEN}biway-admin installed successfully!${NC}"
+echo -e "${GREEN}biway-admin ${LATEST_RELEASE} installed successfully!${NC}"
 
 # === Configuration Questions ===
 echo -e "\n${YELLOW}=== Biway Admin Setup ===${NC}"
-
 read -p "Port for the admin panel [8500]: " PORT
 PORT=${PORT:-8500}
 
@@ -89,10 +126,8 @@ DB_PATH=${DB_PATH:-${INSTALL_DIR}/biway.sqlite}
 read -p "Private network CIDR [10.10.0.0/24]: " PRIVATE_CIDR
 PRIVATE_CIDR=${PRIVATE_CIDR:-10.10.0.0/24}
 
-
 # Create systemd service
 echo -e "${YELLOW}Creating systemd service...${NC}"
-
 cat > /etc/systemd/system/biway-admin.service << EOF
 [Unit]
 Description=Biway Admin Control Plane
@@ -124,6 +159,4 @@ echo -e "\n${GREEN}=== Installation Complete! ===${NC}"
 echo -e "Admin panel should be available at: http://0.0.0.0:${PORT}"
 echo -e "Service status: systemctl status biway-admin"
 echo -e "Logs: journalctl -u biway-admin -f"
-
-
 echo -e "\n${GREEN}You can now complete the setup wizard in your browser.${NC}"
