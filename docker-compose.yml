@@ -1,0 +1,19 @@
+services:
+  biway-admin:
+    image: ghcr.io/kybexonline/biway-admin:latest
+    container_name: biway-admin
+    restart: unless-stopped
+    ports:
+      - "8500:8500"
+    volumes:
+      - biway-data:/data
+    environment:
+      BIWAY_ENV: production
+      BIWAY_PRIVATE_CIDR: 10.10.0.0/16
+      BIWAY_ALLOW_ORIGINS: "*"
+      # Set a persistent JWT secret so restarts don't invalidate sessions.
+      # Generate one with: openssl rand -hex 32
+      BIWAY_JWT_SECRET: "changeme-generate-a-real-secret"
+
+volumes:
+  biway-data:

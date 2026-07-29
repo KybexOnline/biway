@@ -29,6 +29,58 @@ This script will:
 After installation, open your browser to http://your-server-ip:8500 and complete the setup wizard.
 
 
+---
+
+## 🐳 Docker
+
+A prebuilt image for **biway-admin** is published to GitHub Container Registry. This image contains the Admin control plane only — the agent is not included, since agents run directly on each mesh node rather than in a container.
+
+```bash
+docker pull ghcr.io/kybexonline/biway-admin:latest
+```
+
+### Run with Docker
+
+```bash
+docker run -d \
+  --name biway-admin \
+  -p 8500:8500 \
+  -v biway-data:/data \
+  -e BIWAY_PRIVATE_CIDR=10.10.0.0/16 \
+  -e BIWAY_JWT_SECRET="$(openssl rand -hex 32)" \
+  ghcr.io/kybexonline/biway-admin:latest
+```
+
+Then open your browser to `http://localhost:8500` and complete the setup wizard.
+
+### Run with Docker Compose
+
+See [`docker-compose.yaml`](docker-compose.yaml) for a ready-to-use example. Quick start:
+
+```bash
+docker compose up -d
+```
+
+### Supported Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BIWAY_ENV` | Runtime environment (`development` or `production`) | `production` |
+| `BIWAY_JWT_SECRET` | Secret used for JWT authentication. **Recommended to set explicitly** — if unset, a new secret is generated on every container restart, invalidating existing sessions. | Auto-generated |
+| `BIWAY_PRIVATE_CIDR` | Private mesh network CIDR | `10.35.0.0/24` |
+| `BIWAY_ALLOW_ORIGINS` | Allowed CORS origins | `*` |
+| `BIWAY_LISTEN` | Interface the server binds to | `0.0.0.0` |
+| `BIWAY_PORT` | Port the server listens on | `8500` |
+| `BIWAY_DB_PATH` | Path to the SQLite database file inside the container | `/data/biway.sqlite` |
+
+### Persisting Data
+
+The container stores its SQLite database at `/data/biway.sqlite`. Mount a volume at `/data` to persist your data across container restarts and upgrades — without it, all node registrations and settings are lost when the container is removed.
+
+### Supported Architectures
+
+Images are published for `linux/amd64` and `linux/arm64`.
+
 
 ---
 
@@ -205,7 +257,7 @@ Additional documentation can be found in:
 
 Biway is actively under development. Here's what's planned for upcoming releases:
 
-* [ ] Publish official Docker images for the Admin Dashboard
+* [x] Publish official Docker images for the Admin Dashboard
 * [ ] High Availability (HA) Control Plane
 * [ ] Windows Agent Support
 * [ ] Prometheus Metrics & Monitoring
