@@ -22,12 +22,23 @@ func serverCommand() *cobra.Command {
 	var port int
 	var dbPath string
 	var configPath string
+	var tlsCertFile string
+	var tlsKeyFile string
 
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "serve the admin panel and api",
 		Run: func(cmd *cobra.Command, args []string) {
 			config.LoadConfig(configPath)
+
+			if tlsCertFile != "" {
+				config.AppConfig.TLS.CertFile = tlsCertFile
+				config.AppConfig.TLS.Enabled = true
+			}
+			if tlsKeyFile != "" {
+				config.AppConfig.TLS.KeyFile = tlsKeyFile
+				config.AppConfig.TLS.Enabled = true
+			}
 
 			_, err := db.GetDatabaseConnection(dbPath)
 			if err != nil {
@@ -43,10 +54,19 @@ func serverCommand() *cobra.Command {
 				Handler: engine.Handler(),
 			}
 
+			tlsEnabled := config.AppConfig.TLS.Enabled
+
 			go func() {
 				// service connections
-				log.Info().Msgf("Starting web server on %s", listenAddr)
-				if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				var err error
+				if tlsEnabled {
+					log.Info().Msgf("Starting web server on https://%s (TLS enabled)", listenAddr)
+					err = srv.ListenAndServeTLS(config.AppConfig.TLS.CertFile, config.AppConfig.TLS.KeyFile)
+				} else {
+					log.Info().Msgf("Starting web server on http://%s", listenAddr)
+					err = srv.ListenAndServe()
+				}
+				if err != nil && err != http.ErrServerClosed {
 					log.Info().Msgf("listen: %s\n", err)
 				}
 			}()
@@ -72,6 +92,8 @@ func serverCommand() *cobra.Command {
 	cmd.Flags().IntVarP(&port, "port", "p", 8500, "port of web service!")
 	cmd.Flags().StringVarP(&dbPath, "database", "d", "biway.sqlite", "database path")
 	cmd.Flags().StringVarP(&configPath, "config", "c", "biway.yml", "config path")
+	cmd.Flags().StringVar(&tlsCertFile, "tls-cert", "", "path to TLS certificate file (enables TLS, overrides config)")
+	cmd.Flags().StringVar(&tlsKeyFile, "tls-key", "", "path to TLS private key file (enables TLS, overrides config)")
 
 	return cmd
 }
